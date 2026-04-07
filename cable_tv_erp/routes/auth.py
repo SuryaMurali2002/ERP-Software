@@ -3,6 +3,11 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash,
 from db import query_db
 import logging
 
+# Import bcrypt instance directly from app to avoid extensions lookup issues
+def _get_bcrypt():
+    from app import bcrypt
+    return bcrypt
+
 auth_bp = Blueprint('auth', __name__)
 
 
@@ -65,17 +70,12 @@ def login():
                 flash('Your account is inactive. Contact support.', 'error')
                 return render_template('login.html')
 
-            from flask import current_app
-            bcrypt_inst = current_app.extensions.get('bcrypt')
-            valid = False
-            if bcrypt_inst:
-                try:
-                    valid = bcrypt_inst.check_password_hash(user['passwordHash'], password)
-                except Exception:
-                    valid = False
-            else:
-                # Fallback for dev without bcrypt
-                valid = (user['passwordHash'] == password)
+            try:
+                bcrypt_inst = _get_bcrypt()
+                valid = bcrypt_inst.check_password_hash(user['passwordHash'], password)
+            except Exception as ex:
+                logging.error(f"bcrypt check failed: {ex}")
+                valid = False
 
             if valid:
                 role = get_user_role(user['userId'])
