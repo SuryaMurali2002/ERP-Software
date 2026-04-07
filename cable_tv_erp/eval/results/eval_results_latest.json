@@ -1,6 +1,6 @@
 {
-  "timestamp": "2026-04-07T12:12:25",
-  "top_k": 8,
+  "timestamp": "2026-04-07T13:09:32",
+  "top_k": 5,
   "mode": "dry_run",
   "answer_accuracy": null,
   "retrieval_hit_rate": 100.0,
