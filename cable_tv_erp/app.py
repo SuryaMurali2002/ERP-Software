@@ -26,6 +26,7 @@ from routes.inventory import inventory_bp
 from routes.tickets import tickets_bp
 from routes.permissions import permissions_bp
 from routes.reports import reports_bp
+from routes.chatbot import chatbot_bp
 
 app.register_blueprint(auth_bp)
 app.register_blueprint(dashboard_bp)
@@ -38,6 +39,7 @@ app.register_blueprint(inventory_bp)
 app.register_blueprint(tickets_bp)
 app.register_blueprint(permissions_bp)
 app.register_blueprint(reports_bp)
+app.register_blueprint(chatbot_bp)
 
 
 @app.route('/')

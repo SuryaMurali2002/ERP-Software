@@ -1,0 +1,306 @@
+{
+  "timestamp": "2026-04-07T12:12:18",
+  "top_k": 3,
+  "mode": "dry_run",
+  "answer_accuracy": null,
+  "retrieval_hit_rate": 90.0,
+  "total_questions": 20,
+  "correct_answers": null,
+  "retrieval_hits": 18,
+  "by_category": {
+    "billing": {
+      "correct": null,
+      "total": 4,
+      "accuracy": null
+    },
+    "cross_entity": {
+      "correct": null,
+      "total": 3,
+      "accuracy": null
+    },
+    "customers": {
+      "correct": null,
+      "total": 3,
+      "accuracy": null
+    },
+    "inventory": {
+      "correct": null,
+      "total": 2,
+      "accuracy": null
+    },
+    "packages": {
+      "correct": null,
+      "total": 1,
+      "accuracy": null
+    },
+    "permissions": {
+      "correct": null,
+      "total": 2,
+      "accuracy": null
+    },
+    "subscriptions": {
+      "correct": null,
+      "total": 2,
+      "accuracy": null
+    },
+    "tickets": {
+      "correct": null,
+      "total": 3,
+      "accuracy": null
+    }
+  },
+  "results": [
+    {
+      "id": "q01",
+      "category": "customers",
+      "question": "How many active customers are there?",
+      "expected": "4",
+      "got": "[skipped \u2014 dry run]",
+      "answer_correct": null,
+      "retrieval_hit": 1,
+      "keywords_matched": [
+        "4"
+      ]
+    },
+    {
+      "id": "q02",
+      "category": "customers",
+      "question": "Which customer has a suspended account?",
+      "expected": "Diana Prince",
+      "got": "[skipped \u2014 dry run]",
+      "answer_correct": null,
+      "retrieval_hit": 1,
+      "keywords_matched": [
+        "diana",
+        "prince",
+        "14"
+      ]
+    },
+    {
+      "id": "q03",
+      "category": "customers",
+      "question": "What is Alice Smith's address?",
+      "expected": "101 Maple St, Vancouver",
+      "got": "[skipped \u2014 dry run]",
+      "answer_correct": null,
+      "retrieval_hit": 1,
+      "keywords_matched": [
+        "maple",
+        "vancouver"
+      ]
+    },
+    {
+      "id": "q04",
+      "category": "subscriptions",
+      "question": "How many active subscriptions are there?",
+      "expected": "4",
+      "got": "[skipped \u2014 dry run]",
+      "answer_correct": null,
+      "retrieval_hit": 1,
+      "keywords_matched": [
+        "4"
+      ]
+    },
+    {
+      "id": "q05",
+      "category": "subscriptions",
+      "question": "Which customer is subscribed to the Ultimate package?",
+      "expected": "Evan Wright",
+      "got": "[skipped \u2014 dry run]",
+      "answer_correct": null,
+      "retrieval_hit": 1,
+      "keywords_matched": [
+        "evan",
+        "wright",
+        "15"
+      ]
+    },
+    {
+      "id": "q06",
+      "category": "packages",
+      "question": "What is the most expensive package and its price?",
+      "expected": "Ultimate, $99.99",
+      "got": "[skipped \u2014 dry run]",
+      "answer_correct": null,
+      "retrieval_hit": 1,
+      "keywords_matched": [
+        "ultimate",
+        "99.99"
+      ]
+    },
+    {
+      "id": "q07",
+      "category": "billing",
+      "question": "Which customer has an overdue invoice?",
+      "expected": "Diana Prince",
+      "got": "[skipped \u2014 dry run]",
+      "answer_correct": null,
+      "retrieval_hit": 1,
+      "keywords_matched": [
+        "diana",
+        "prince"
+      ]
+    },
+    {
+      "id": "q08",
+      "category": "billing",
+      "question": "What is the total amount of invoice number 3?",
+      "expected": "$79.99",
+      "got": "[skipped \u2014 dry run]",
+      "answer_correct": null,
+      "retrieval_hit": 0,
+      "keywords_matched": []
+    },
+    {
+      "id": "q09",
+      "category": "billing",
+      "question": "How did Bob Jones pay his January 2025 invoice?",
+      "expected": "debit card",
+      "got": "[skipped \u2014 dry run]",
+      "answer_correct": null,
+      "retrieval_hit": 1,
+      "keywords_matched": [
+        "debit"
+      ]
+    },
+    {
+      "id": "q10",
+      "category": "billing",
+      "question": "What is the balance remaining on Charlie Brown's January invoice?",
+      "expected": "$39.99",
+      "got": "[skipped \u2014 dry run]",
+      "answer_correct": null,
+      "retrieval_hit": 1,
+      "keywords_matched": [
+        "39.99"
+      ]
+    },
+    {
+      "id": "q11",
+      "category": "inventory",
+      "question": "What is the current stock level of HD Set-Top Boxes?",
+      "expected": "7",
+      "got": "[skipped \u2014 dry run]",
+      "answer_correct": null,
+      "retrieval_hit": 1,
+      "keywords_matched": [
+        "7"
+      ]
+    },
+    {
+      "id": "q12",
+      "category": "inventory",
+      "question": "Which device is assigned to Alice Smith?",
+      "expected": "HD Set-Top Box, CARD-1001",
+      "got": "[skipped \u2014 dry run]",
+      "answer_correct": null,
+      "retrieval_hit": 1,
+      "keywords_matched": [
+        "card-1001",
+        "sn-a001",
+        "hd set-top"
+      ]
+    },
+    {
+      "id": "q13",
+      "category": "tickets",
+      "question": "How many open tickets are there?",
+      "expected": "3",
+      "got": "[skipped \u2014 dry run]",
+      "answer_correct": null,
+      "retrieval_hit": 1,
+      "keywords_matched": [
+        "3"
+      ]
+    },
+    {
+      "id": "q14",
+      "category": "tickets",
+      "question": "Which employee is handling Evan Wright's ticket?",
+      "expected": "unassigned",
+      "got": "[skipped \u2014 dry run]",
+      "answer_correct": null,
+      "retrieval_hit": 1,
+      "keywords_matched": [
+        "unassigned"
+      ]
+    },
+    {
+      "id": "q15",
+      "category": "tickets",
+      "question": "What is the priority of ticket number 4?",
+      "expected": "high",
+      "got": "[skipped \u2014 dry run]",
+      "answer_correct": null,
+      "retrieval_hit": 1,
+      "keywords_matched": [
+        "high"
+      ]
+    },
+    {
+      "id": "q16",
+      "category": "permissions",
+      "question": "What permissions does admin_sara have?",
+      "expected": "MANAGE_CUSTOMERS, MANAGE_BILLING",
+      "got": "[skipped \u2014 dry run]",
+      "answer_correct": null,
+      "retrieval_hit": 1,
+      "keywords_matched": [
+        "manage_customers",
+        "manage_billing"
+      ]
+    },
+    {
+      "id": "q17",
+      "category": "permissions",
+      "question": "Which employee handles inventory management?",
+      "expected": "emp_linda",
+      "got": "[skipped \u2014 dry run]",
+      "answer_correct": null,
+      "retrieval_hit": 0,
+      "keywords_matched": []
+    },
+    {
+      "id": "q18",
+      "category": "cross_entity",
+      "question": "Which customers have paid all their invoices?",
+      "expected": "Alice Smith, Bob Jones, Evan Wright",
+      "got": "[skipped \u2014 dry run]",
+      "answer_correct": null,
+      "retrieval_hit": 1,
+      "keywords_matched": [
+        "alice",
+        "bob",
+        "evan"
+      ]
+    },
+    {
+      "id": "q19",
+      "category": "cross_entity",
+      "question": "What package is Charlie Brown subscribed to and how much does it cost?",
+      "expected": "Premium, $79.99",
+      "got": "[skipped \u2014 dry run]",
+      "answer_correct": null,
+      "retrieval_hit": 1,
+      "keywords_matched": [
+        "premium",
+        "79.99",
+        "charlie"
+      ]
+    },
+    {
+      "id": "q20",
+      "category": "cross_entity",
+      "question": "How many devices are currently available for assignment?",
+      "expected": "1",
+      "got": "[skipped \u2014 dry run]",
+      "answer_correct": null,
+      "retrieval_hit": 1,
+      "keywords_matched": [
+        "1",
+        "one",
+        "card-2002"
+      ]
+    }
+  ]
+}
