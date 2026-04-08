@@ -6,7 +6,7 @@
 <div class="detail-header">
     <div class="detail-actions">
         <a href="{{ url_for('billing.invoices') }}" class="btn btn-ghost">← Back</a>
-        {% if invoice.invoiceStatus != 'paid' %}
+        {% if invoice.invoiceStatus != 'paid' and (current_role == 'admin' or 'MANAGE_BILLING' in user_permissions) %}
         <form method="POST" action="{{ url_for('billing.mark_paid', iid=invoice.invoiceId) }}" style="display:inline">
             <button type="submit" class="btn btn-success">Mark as Paid</button>
         </form>
@@ -81,7 +81,9 @@
 <div class="panel">
     <div class="panel-header">
         <h2 class="panel-title">Payment Allocations</h2>
+        {% if current_role == 'admin' or 'MANAGE_BILLING' in user_permissions %}
         <a href="{{ url_for('billing.new_allocation') }}" class="btn btn-ghost btn-sm">+ Allocate Payment</a>
+        {% endif %}
     </div>
     <div class="table-wrapper">
         <table class="data-table">

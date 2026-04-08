@@ -357,6 +357,213 @@ def export_permissions():
     return chunks
 
 
+def export_single_customer(customer_id: int):
+    """Export one customer record as a RAG document chunk. Returns None if not found."""
+    r = query_db(
+        "SELECT customerId, firstName, lastName, address, accountStatus FROM Customer WHERE customerId = %s",
+        (customer_id,), one=True
+    )
+    if not r:
+        return None
+    cid = r['customerId']
+    subs = query_db(
+        """SELECT p.packageName, p.monthlyPrice, s.startDate
+           FROM Subscription s JOIN Package p ON s.packageId = p.packageId
+           WHERE s.customerId = %s AND s.status = 'active'""",
+        (cid,)
+    )
+    subs_text = ', '.join(
+        f"{s['packageName']} (${float(s['monthlyPrice']):.2f}/month) since {s['startDate']}"
+        for s in subs
+    ) if subs else 'None'
+    open_tickets = query_db(
+        "SELECT COUNT(*) AS cnt FROM Ticket WHERE customerId = %s AND status = 'open'",
+        (cid,), one=True
+    )['cnt']
+    overdue_inv = query_db(
+        "SELECT COUNT(*) AS cnt FROM Invoice WHERE customerId = %s AND invoiceStatus = 'overdue'",
+        (cid,), one=True
+    )['cnt']
+    text = (
+        f"Customer ID: {cid}\n"
+        f"Name: {r['firstName']} {r['lastName']}\n"
+        f"Address: {r['address']}\n"
+        f"Account Status: {r['accountStatus']}\n"
+        f"Active Subscriptions: {subs_text}\n"
+        f"Open Tickets: {open_tickets}\n"
+        f"Overdue Invoices: {overdue_inv}"
+    )
+    return {'id': f"customer_{cid}", 'text': text, 'metadata': {'table': 'customer', 'record_id': str(cid)}}
+
+
+def export_single_subscription(subscription_id: int):
+    """Export one subscription record as a RAG document chunk. Returns None if not found."""
+    r = query_db(
+        """SELECT s.subscriptionId, s.startDate, s.endDate, s.status,
+                  c.customerId, c.firstName, c.lastName, p.packageName, p.monthlyPrice
+           FROM Subscription s
+           JOIN Customer c ON s.customerId = c.customerId
+           JOIN Package p ON s.packageId = p.packageId
+           WHERE s.subscriptionId = %s""",
+        (subscription_id,), one=True
+    )
+    if not r:
+        return None
+    end_date = str(r['endDate']) if r['endDate'] else 'N/A'
+    text = (
+        f"Subscription ID: {r['subscriptionId']}\n"
+        f"Customer: {r['firstName']} {r['lastName']} (ID: {r['customerId']})\n"
+        f"Package: {r['packageName']} (${float(r['monthlyPrice']):.2f}/month)\n"
+        f"Start Date: {r['startDate']}\n"
+        f"End Date: {end_date}\n"
+        f"Status: {r['status']}"
+    )
+    return {'id': f"subscription_{r['subscriptionId']}", 'text': text, 'metadata': {'table': 'subscription', 'record_id': str(r['subscriptionId'])}}
+
+
+def export_single_invoice(invoice_id: int):
+    """Export one invoice record as a RAG document chunk. Returns None if not found."""
+    r = query_db(
+        """SELECT i.invoiceId, i.billingPeriod, i.totalAmount, i.invoiceStatus,
+                  i.issueDate, i.dueDate, c.customerId, c.firstName, c.lastName,
+                  COALESCE(SUM(pa.allocatedAmount), 0) AS amountPaid
+           FROM Invoice i
+           JOIN Customer c ON i.customerId = c.customerId
+           LEFT JOIN PaymentAllocation pa ON i.invoiceId = pa.invoiceId
+           WHERE i.invoiceId = %s
+           GROUP BY i.invoiceId, i.billingPeriod, i.totalAmount, i.invoiceStatus,
+                    i.issueDate, i.dueDate, c.customerId, c.firstName, c.lastName""",
+        (invoice_id,), one=True
+    )
+    if not r:
+        return None
+    total = float(r['totalAmount'])
+    paid = float(r['amountPaid'])
+    text = (
+        f"Invoice ID: {r['invoiceId']}\n"
+        f"Customer: {r['firstName']} {r['lastName']} (ID: {r['customerId']})\n"
+        f"Billing Period: {r['billingPeriod']}\n"
+        f"Total Amount: ${total:.2f}\n"
+        f"Amount Paid: ${paid:.2f}\n"
+        f"Balance: ${total - paid:.2f}\n"
+        f"Status: {r['invoiceStatus']}\n"
+        f"Due Date: {r['dueDate']}"
+    )
+    return {'id': f"invoice_{r['invoiceId']}", 'text': text, 'metadata': {'table': 'invoice', 'record_id': str(r['invoiceId'])}}
+
+
+def export_single_payment(payment_id: int):
+    """Export one payment record as a RAG document chunk. Returns None if not found."""
+    r = query_db(
+        """SELECT p.paymentId, p.amount, p.paymentDate, p.method,
+                  c.customerId, c.firstName, c.lastName
+           FROM Payment p JOIN Customer c ON p.customerId = c.customerId
+           WHERE p.paymentId = %s""",
+        (payment_id,), one=True
+    )
+    if not r:
+        return None
+    allocs = query_db(
+        "SELECT pa.invoiceId, pa.allocatedAmount FROM PaymentAllocation pa WHERE pa.paymentId = %s",
+        (r['paymentId'],)
+    )
+    alloc_text = ', '.join(
+        f"Invoice #{a['invoiceId']} (${float(a['allocatedAmount']):.2f})" for a in allocs
+    ) if allocs else 'None'
+    text = (
+        f"Payment ID: {r['paymentId']}\n"
+        f"Customer: {r['firstName']} {r['lastName']} (ID: {r['customerId']})\n"
+        f"Amount: ${float(r['amount']):.2f}\n"
+        f"Date: {r['paymentDate']}\n"
+        f"Method: {r['method']}\n"
+        f"Allocated To Invoice(s): {alloc_text}"
+    )
+    return {'id': f"payment_{r['paymentId']}", 'text': text, 'metadata': {'table': 'payment', 'record_id': str(r['paymentId'])}}
+
+
+def export_single_ticket(ticket_id: int):
+    """Export one ticket record as a RAG document chunk. Returns None if not found."""
+    r = query_db(
+        """SELECT t.ticketId, t.priority, t.status, t.createdAt, t.handledBy,
+                  c.customerId, c.firstName, c.lastName, u.userName AS employeeName
+           FROM Ticket t
+           JOIN Customer c ON t.customerId = c.customerId
+           LEFT JOIN User u ON t.handledBy = u.userId
+           WHERE t.ticketId = %s""",
+        (ticket_id,), one=True
+    )
+    if not r:
+        return None
+    handler = f"{r['employeeName']} (Employee ID: {r['handledBy']})" if r['handledBy'] else 'Unassigned'
+    text = (
+        f"Ticket ID: {r['ticketId']}\n"
+        f"Customer: {r['firstName']} {r['lastName']} (ID: {r['customerId']})\n"
+        f"Handled By: {handler}\n"
+        f"Priority: {r['priority']}\n"
+        f"Status: {r['status']}\n"
+        f"Created: {r['createdAt']}"
+    )
+    return {'id': f"ticket_{r['ticketId']}", 'text': text, 'metadata': {'table': 'ticket', 'record_id': str(r['ticketId'])}}
+
+
+def export_single_device(device_id: int):
+    """Export one device record as a RAG document chunk. Returns None if not found."""
+    r = query_db(
+        """SELECT d.deviceId, d.cardNumber, d.serialNumber, d.status, it.itemName,
+                  da.customerId AS assignedCustomerId, da.assignedDate,
+                  c.firstName, c.lastName
+           FROM Device d
+           JOIN Item it ON d.itemId = it.itemId
+           LEFT JOIN DeviceAssignment da ON d.deviceId = da.deviceId AND da.returnedDate IS NULL
+           LEFT JOIN Customer c ON da.customerId = c.customerId
+           WHERE d.deviceId = %s""",
+        (device_id,), one=True
+    )
+    if not r:
+        return None
+    assignment = (
+        f"{r['firstName']} {r['lastName']} (ID: {r['assignedCustomerId']}) since {r['assignedDate']}"
+        if r['assignedCustomerId'] else 'Not assigned'
+    )
+    text = (
+        f"Device ID: {r['deviceId']}\n"
+        f"Item: {r['itemName']}\n"
+        f"Card Number: {r['cardNumber']}\n"
+        f"Serial Number: {r['serialNumber']}\n"
+        f"Status: {r['status']}\n"
+        f"Currently Assigned To: {assignment}"
+    )
+    return {'id': f"device_{r['deviceId']}", 'text': text, 'metadata': {'table': 'device', 'record_id': str(r['deviceId'])}}
+
+
+def export_single_item(item_id: int):
+    """Export one inventory item record as a RAG document chunk. Returns None if not found."""
+    r = query_db(
+        """SELECT i.itemId, i.itemName, i.category,
+                  COALESCE(SUM(CASE WHEN it2.transactionType='inbound' THEN tl.quantity ELSE 0 END), 0) AS totalIn,
+                  COALESCE(SUM(CASE WHEN it2.transactionType='outbound' THEN tl.quantity ELSE 0 END), 0) AS totalOut
+           FROM Item i
+           LEFT JOIN TransactionLine tl ON i.itemId = tl.itemId
+           LEFT JOIN InventoryTransaction it2 ON tl.transactionID = it2.transactionID
+           WHERE i.itemId = %s
+           GROUP BY i.itemId, i.itemName, i.category""",
+        (item_id,), one=True
+    )
+    if not r:
+        return None
+    total_in = int(r['totalIn'])
+    total_out = int(r['totalOut'])
+    text = (
+        f"Item ID: {r['itemId']}\n"
+        f"Name: {r['itemName']}\n"
+        f"Category: {r['category']}\n"
+        f"Total Inbound: {total_in}\n"
+        f"Total Outbound: {total_out}\n"
+        f"Current Stock Level: {total_in - total_out}"
+    )
+    return {'id': f"inventory_{r['itemId']}", 'text': text, 'metadata': {'table': 'inventory', 'record_id': str(r['itemId'])}}
+
+
 def export_all_chunks():
     """Export all ERP entities as text chunks. Returns list of dicts."""
     entity_exporters = [

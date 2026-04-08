@@ -1,6 +1,7 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash
 from db import query_db
 from routes.auth import login_required_session
+from routes.decorators import admin_required, permission_required
 import logging
 
 reports_bp = Blueprint('reports', __name__)
@@ -130,6 +131,7 @@ ORDER BY overdueCount DESC"""
 
 @reports_bp.route('/reports')
 @login_required_session
+@permission_required('VIEW_REPORTS')
 def index():
     results = {}
     errors = {}
@@ -151,6 +153,7 @@ def index():
 
 @reports_bp.route('/reports/reactivate', methods=['POST'])
 @login_required_session
+@admin_required
 def reactivate_accounts():
     try:
         rows_updated = query_db(

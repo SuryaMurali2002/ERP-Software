@@ -78,10 +78,17 @@ def login():
                 valid = False
 
             if valid:
-                role = get_user_role(user['userId'])
+                # Only allow Admins and Employees — ERP is staff-only
+                is_admin = query_db("SELECT userId FROM Admin WHERE userId = %s", (user['userId'],), one=True)
+                is_employee = query_db("SELECT userId FROM Employee WHERE userId = %s", (user['userId'],), one=True)
+
+                if not is_admin and not is_employee:
+                    flash('Access denied. This system is for staff only.', 'error')
+                    return render_template('login.html')
+
                 session['user_id'] = user['userId']
                 session['user_name'] = user['userName']
-                session['role'] = role
+                session['role'] = 'admin' if is_admin else 'employee'
                 flash(f'Welcome back, {user["userName"]}!', 'success')
                 return redirect(url_for('dashboard.index'))
             else:

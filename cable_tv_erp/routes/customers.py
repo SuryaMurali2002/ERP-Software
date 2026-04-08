@@ -1,6 +1,8 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, abort
 from db import query_db
-from routes.auth import login_required_session, admin_required
+from routes.auth import login_required_session
+from routes.decorators import admin_required, permission_required
+from rag.sync import sync_customer, remove_customer
 import logging
 
 customers_bp = Blueprint('customers', __name__)
@@ -38,7 +40,7 @@ def list_customers():
 def detail(cid):
     try:
         customer = query_db(
-            "SELECT c.*, u.userName FROM Customer c JOIN User u ON c.customerId = u.userId WHERE c.customerId = %s",
+            "SELECT c.* FROM Customer c WHERE c.customerId = %s",
             (cid,), one=True
         )
         if not customer:
@@ -98,18 +100,15 @@ def detail(cid):
 
 @customers_bp.route('/customers/new', methods=['GET', 'POST'])
 @login_required_session
+@permission_required('MANAGE_CUSTOMERS')
 def new_customer():
     if request.method == 'POST':
-        username = request.form.get('username', '').strip()
-        password = request.form.get('password', '').strip()
         first_name = request.form.get('first_name', '').strip()
         last_name = request.form.get('last_name', '').strip()
         address = request.form.get('address', '').strip()
         status = request.form.get('account_status', 'active')
 
         errors = []
-        if not username: errors.append('Username is required.')
-        if not password: errors.append('Password is required.')
         if not first_name: errors.append('First name is required.')
         if not last_name: errors.append('Last name is required.')
         if not address: errors.append('Address is required.')
@@ -120,25 +119,13 @@ def new_customer():
             return render_template('customers/form.html', action='new', form=request.form)
 
         try:
-            existing = query_db("SELECT userId FROM User WHERE userName = %s", (username,), one=True)
-            if existing:
-                flash('Username already exists.', 'error')
-                return render_template('customers/form.html', action='new', form=request.form)
-
-            from flask import current_app
-            bcrypt_inst = current_app.extensions.get('bcrypt')
-            pw_hash = bcrypt_inst.generate_password_hash(password).decode('utf-8') if bcrypt_inst else password
-
-            user_id = query_db(
-                "INSERT INTO User (userName, passwordHash, status) VALUES (%s, %s, 'active')",
-                (username, pw_hash), commit=True
+            new_id = query_db(
+                "INSERT INTO Customer (firstName, lastName, address, accountStatus) VALUES (%s, %s, %s, %s)",
+                (first_name, last_name, address, status), commit=True
             )
-            query_db(
-                "INSERT INTO Customer (customerId, firstName, lastName, address, accountStatus) VALUES (%s, %s, %s, %s, %s)",
-                (user_id, first_name, last_name, address, status), commit=True
-            )
+            sync_customer(new_id)
             flash(f'Customer {first_name} {last_name} created successfully.', 'success')
-            return redirect(url_for('customers.detail', cid=user_id))
+            return redirect(url_for('customers.detail', cid=new_id))
         except Exception as e:
             logging.error(f"Create customer error: {e}")
             flash('Something went wrong creating the customer.', 'error')
@@ -149,9 +136,10 @@ def new_customer():
 
 @customers_bp.route('/customers/<int:cid>/edit', methods=['GET', 'POST'])
 @login_required_session
+@permission_required('MANAGE_CUSTOMERS')
 def edit_customer(cid):
     customer = query_db(
-        "SELECT c.*, u.userName FROM Customer c JOIN User u ON c.customerId = u.userId WHERE c.customerId = %s",
+        "SELECT c.* FROM Customer c WHERE c.customerId = %s",
         (cid,), one=True
     )
     if not customer:
@@ -178,6 +166,7 @@ def edit_customer(cid):
                 "UPDATE Customer SET firstName=%s, lastName=%s, address=%s, accountStatus=%s WHERE customerId=%s",
                 (first_name, last_name, address, status, cid), commit=True
             )
+            sync_customer(cid)
             flash('Customer updated successfully.', 'success')
             return redirect(url_for('customers.detail', cid=cid))
         except Exception as e:
@@ -194,7 +183,8 @@ def delete_customer(cid):
         customer = query_db("SELECT * FROM Customer WHERE customerId = %s", (cid,), one=True)
         if not customer:
             abort(404)
-        query_db("DELETE FROM User WHERE userId = %s", (cid,), commit=True)
+        remove_customer(cid)
+        query_db("DELETE FROM Customer WHERE customerId = %s", (cid,), commit=True)
         flash('Customer deleted successfully.', 'success')
     except Exception as e:
         logging.error(f"Delete customer error: {e}")

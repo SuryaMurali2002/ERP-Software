@@ -1,6 +1,8 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, abort
 from db import query_db
-from routes.auth import login_required_session, admin_required
+from routes.auth import login_required_session
+from routes.decorators import permission_required
+from rag.sync import sync_subscription
 from datetime import date
 import logging
 
@@ -37,6 +39,7 @@ def list_subscriptions():
 
 @subscriptions_bp.route('/subscriptions/new', methods=['GET', 'POST'])
 @login_required_session
+@permission_required('MANAGE_CUSTOMERS')
 def new_subscription():
     customers = query_db(
         "SELECT customerId, firstName, lastName FROM Customer WHERE accountStatus='active' ORDER BY lastName"
@@ -59,10 +62,11 @@ def new_subscription():
             return render_template('subscriptions/form.html',
                                    customers=customers, packages=packages, form=request.form)
         try:
-            query_db(
+            new_id = query_db(
                 "INSERT INTO Subscription (customerId, packageId, startDate, status) VALUES (%s, %s, %s, 'active')",
                 (customer_id, package_id, start_date), commit=True
             )
+            sync_subscription(new_id)
             flash('Subscription created successfully.', 'success')
             return redirect(url_for('subscriptions.list_subscriptions'))
         except Exception as e:
@@ -75,6 +79,7 @@ def new_subscription():
 
 @subscriptions_bp.route('/subscriptions/<int:sid>/cancel', methods=['POST'])
 @login_required_session
+@permission_required('MANAGE_CUSTOMERS')
 def cancel_subscription(sid):
     try:
         sub = query_db("SELECT * FROM Subscription WHERE subscriptionId = %s", (sid,), one=True)
@@ -85,6 +90,7 @@ def cancel_subscription(sid):
             "UPDATE Subscription SET status='cancelled', endDate=%s WHERE subscriptionId=%s",
             (today, sid), commit=True
         )
+        sync_subscription(sid)
         flash('Subscription cancelled successfully.', 'success')
     except Exception as e:
         logging.error(f"Cancel subscription error: {e}")

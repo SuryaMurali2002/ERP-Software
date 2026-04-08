@@ -21,6 +21,7 @@
                 <option value="8">top-8</option>
                 <option value="10">top-10</option>
             </select>
+            <button class="btn btn-clear-chat btn-sm" onclick="clearHistory()" title="Clear chat history">↺ Clear</button>
         </div>
     </div>
 
@@ -36,6 +37,38 @@
                 </div>
             </div>
         </div>
+        <!-- Saved history from session -->
+        {% for msg in chat_history %}
+        {% if msg.role == 'user' %}
+        <div class="chat-msg chat-msg-user">
+            <div class="msg-avatar">👤</div>
+            <div class="msg-body">
+                <div class="msg-bubble">{{ msg.text }}</div>
+            </div>
+        </div>
+        {% else %}
+        <div class="chat-msg chat-msg-bot">
+            <div class="msg-avatar">🤖</div>
+            <div class="msg-body">
+                <div class="msg-bubble">{{ msg.text }}</div>
+                {% if msg.sources %}
+                <button class="sources-toggle" onclick="toggleSources(this)">
+                    <span class="sources-arrow">▸</span>
+                    Sources ({{ msg.sources|length }})
+                </button>
+                <div class="sources-list">
+                    {% for s in msg.sources %}
+                    <div class="source-chip">
+                        <span class="source-type-badge stype-{{ s.table }}">{{ s.table }}</span>
+                        <span>{{ s.id }}</span>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+        {% endfor %}
     </div>
 
     <!-- Suggested chips -->
@@ -255,6 +288,24 @@
 .stype-package     { background: rgba(61,214,140,0.15); color: var(--success); }
 .stype-permission  { background: rgba(139,144,168,0.2); color: var(--text-secondary); }
 .stype-unknown     { background: rgba(139,144,168,0.2); color: var(--text-secondary); }
+
+/* ---- Clear button ---- */
+.btn-clear-chat {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text-secondary);
+    padding: 0.3rem 0.75rem;
+    border-radius: 4px;
+    font-size: 0.78rem;
+    cursor: pointer;
+    font-family: inherit;
+    transition: all 0.15s;
+}
+.btn-clear-chat:hover {
+    border-color: var(--danger);
+    color: var(--danger);
+    background: rgba(240,82,82,0.08);
+}
 </style>
 
 <script>
@@ -262,6 +313,9 @@ const chatWindow = document.getElementById('chat-window');
 const chatInput  = document.getElementById('chat-input');
 const sendBtn    = document.getElementById('send-btn');
 const topKSelect = document.getElementById('top-k-select');
+
+// Auto-scroll to bottom on page load (restored history)
+window.addEventListener('load', () => scrollToBottom());
 
 // Submit on Enter (but Shift+Enter for newline)
 chatInput.addEventListener('keydown', function(e) {
@@ -429,6 +483,18 @@ function escapeHtml(str) {
         .replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;')
         .replace(/'/g, '&#039;');
+}
+
+async function clearHistory() {
+    if (!confirm('Clear all chat history?')) return;
+    try {
+        await fetch('/chatbot/clear', { method: 'POST' });
+    } catch (_) {}
+    // Remove all messages except the welcome message (first child)
+    while (chatWindow.children.length > 1) {
+        chatWindow.removeChild(chatWindow.lastChild);
+    }
+    document.getElementById('chip-bar').style.display = 'flex';
 }
 </script>
 {% endblock %}

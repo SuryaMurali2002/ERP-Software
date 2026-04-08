@@ -32,11 +32,14 @@
                 <a href="{{ url_for('packages.list_packages') }}" class="nav-item {% if request.blueprint == 'packages' %}active{% endif %}">
                     <span class="nav-icon">▦</span> Packages
                 </a>
+                {% if current_role == 'admin' or 'MANAGE_CUSTOMERS' in user_permissions %}
                 <a href="{{ url_for('subscriptions.list_subscriptions') }}" class="nav-item {% if request.blueprint == 'subscriptions' %}active{% endif %}">
                     <span class="nav-icon">▤</span> Subscriptions
                 </a>
+                {% endif %}
 
                 <!-- Billing submenu -->
+                {% if current_role == 'admin' or 'MANAGE_BILLING' in user_permissions %}
                 <div class="nav-group">
                     <input type="checkbox" id="billing-toggle" class="nav-toggle"
                         {% if request.blueprint == 'billing' %}checked{% endif %}>
@@ -50,8 +53,10 @@
                         <a href="{{ url_for('billing.allocations') }}" class="nav-subitem {% if request.endpoint == 'billing.allocations' %}active{% endif %}">Allocations</a>
                     </div>
                 </div>
+                {% endif %}
 
                 <!-- Inventory submenu -->
+                {% if current_role == 'admin' or 'MANAGE_INVENTORY' in user_permissions %}
                 <div class="nav-group">
                     <input type="checkbox" id="inventory-toggle" class="nav-toggle"
                         {% if request.blueprint == 'inventory' %}checked{% endif %}>
@@ -65,18 +70,23 @@
                         <a href="{{ url_for('inventory.transactions') }}" class="nav-subitem {% if request.endpoint == 'inventory.transactions' or request.endpoint == 'inventory.transaction_detail' %}active{% endif %}">Transactions</a>
                     </div>
                 </div>
+                {% endif %}
 
+                {% if current_role == 'admin' or 'HANDLE_TICKETS' in user_permissions %}
                 <a href="{{ url_for('tickets.list_tickets') }}" class="nav-item {% if request.blueprint == 'tickets' %}active{% endif %}">
                     <span class="nav-icon">◆</span> Tickets
                 </a>
+                {% endif %}
                 {% if current_role == 'admin' %}
                 <a href="{{ url_for('permissions.manage') }}" class="nav-item {% if request.blueprint == 'permissions' %}active{% endif %}">
                     <span class="nav-icon">◇</span> Permissions
                 </a>
                 {% endif %}
+                {% if current_role == 'admin' or 'VIEW_REPORTS' in user_permissions %}
                 <a href="{{ url_for('reports.index') }}" class="nav-item {% if request.blueprint == 'reports' %}active{% endif %}">
                     <span class="nav-icon">▨</span> Reports
                 </a>
+                {% endif %}
                 <a href="/chatbot" class="nav-item {% if request.path.startswith('/chatbot') %}active{% endif %}">
                     <span class="nav-icon">🤖</span> ERP Assistant
                 </a>

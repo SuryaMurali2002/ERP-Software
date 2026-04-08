@@ -25,7 +25,7 @@
             </h2>
             <p class="text-secondary" style="font-size:0.85rem; margin:0.25rem 0 0">{{ report.description }}</p>
         </div>
-        {% if num == 10 %}
+        {% if num == 10 and current_role == 'admin' %}
         <form method="POST" action="{{ url_for('reports.reactivate_accounts') }}">
             <button type="submit" class="btn btn-warning"
                     onclick="return confirm('Reactivate all eligible suspended accounts?')">

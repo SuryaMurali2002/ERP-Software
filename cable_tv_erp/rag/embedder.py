@@ -147,6 +147,48 @@ def get_collection():
     return client.get_collection(COLLECTION_NAME)
 
 
+def upsert_document(chunk: dict) -> None:
+    """
+    Add or update a single document in ChromaDB.
+    Silently logs and returns on any error — never crashes ERP routes.
+    """
+    try:
+        collection = get_collection()
+        tfidf_vec = get_tfidf_vectorizer()
+        if tfidf_vec is not None:
+            embedding, _ = _tfidf_embed([chunk['text']], vectorizer=tfidf_vec)
+            emb = embedding[0]
+        else:
+            st_model = _try_load_st_model()
+            if st_model is None:
+                import logging
+                logging.warning(f"RAG upsert skipped for {chunk.get('id')}: no embedding backend available.")
+                return
+            emb = st_model.encode([chunk['text']], show_progress_bar=False)[0].tolist()
+        collection.upsert(
+            ids=[chunk['id']],
+            embeddings=[emb],
+            documents=[chunk['text']],
+            metadatas=[chunk['metadata']]
+        )
+    except Exception as e:
+        import logging
+        logging.warning(f"RAG upsert failed for {chunk.get('id')}: {e}")
+
+
+def delete_document(document_id: str) -> None:
+    """
+    Remove a document from ChromaDB by ID.
+    Silently logs and returns on any error — never crashes ERP routes.
+    """
+    try:
+        collection = get_collection()
+        collection.delete(ids=[document_id])
+    except Exception as e:
+        import logging
+        logging.warning(f"RAG delete failed for {document_id}: {e}")
+
+
 def get_tfidf_vectorizer():
     """Load the persisted TF-IDF vectorizer (if TF-IDF fallback was used)."""
     if not os.path.exists(TFIDF_PATH):

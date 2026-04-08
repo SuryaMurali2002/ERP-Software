@@ -1,6 +1,8 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, abort
 from db import query_db
-from routes.auth import login_required_session, admin_required
+from routes.auth import login_required_session
+from routes.decorators import permission_required
+from rag.sync import sync_invoice, sync_payment
 from datetime import date
 import logging
 
@@ -77,6 +79,7 @@ def invoice_detail(iid):
 
 @billing_bp.route('/billing/invoices/new', methods=['GET', 'POST'])
 @login_required_session
+@permission_required('MANAGE_BILLING')
 def new_invoice():
     customers = query_db(
         "SELECT customerId, firstName, lastName FROM Customer ORDER BY lastName"
@@ -135,6 +138,7 @@ def new_invoice():
                 (inv_id, next_line, subscription_id, desc, amount), commit=True
             )
 
+            sync_invoice(inv_id)
             flash(f'Invoice #{inv_id} created successfully.', 'success')
             return redirect(url_for('billing.invoice_detail', iid=inv_id))
         except Exception as e:
@@ -147,12 +151,14 @@ def new_invoice():
 
 @billing_bp.route('/billing/invoices/<int:iid>/mark-paid', methods=['POST'])
 @login_required_session
+@permission_required('MANAGE_BILLING')
 def mark_paid(iid):
     try:
         query_db(
             "UPDATE Invoice SET invoiceStatus='paid' WHERE invoiceId=%s",
             (iid,), commit=True
         )
+        sync_invoice(iid)
         flash('Invoice marked as paid.', 'success')
     except Exception as e:
         logging.error(f"Mark paid error: {e}")
@@ -182,6 +188,7 @@ def payments():
 
 @billing_bp.route('/billing/payments/new', methods=['GET', 'POST'])
 @login_required_session
+@permission_required('MANAGE_BILLING')
 def new_payment():
     customers = query_db(
         "SELECT customerId, firstName, lastName FROM Customer ORDER BY lastName"
@@ -217,6 +224,7 @@ def new_payment():
                 "INSERT INTO Payment (customerId, amount, paymentDate, method) VALUES (%s, %s, %s, %s)",
                 (customer_id, amount, payment_date, method), commit=True
             )
+            sync_payment(pay_id)
             flash(f'Payment #{pay_id} recorded successfully.', 'success')
             return redirect(url_for('billing.payments'))
         except Exception as e:
@@ -252,6 +260,7 @@ def allocations():
 
 @billing_bp.route('/billing/allocations/new', methods=['GET', 'POST'])
 @login_required_session
+@permission_required('MANAGE_BILLING')
 def new_allocation():
     payments = query_db(
         """SELECT p.paymentId, p.amount, p.paymentDate, p.method,
@@ -365,6 +374,7 @@ def new_allocation():
                     "UPDATE Invoice SET invoiceStatus='paid' WHERE invoiceId=%s",
                     (invoice_id,), commit=True
                 )
+            sync_invoice(int(invoice_id))
             flash('Allocation created successfully.', 'success')
             return redirect(url_for('billing.allocations'))
         except Exception as e:

@@ -1,6 +1,8 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, abort
 from db import query_db
-from routes.auth import login_required_session, admin_required
+from routes.auth import login_required_session
+from routes.decorators import permission_required
+from rag.sync import sync_device, sync_item
 from datetime import date
 import logging
 
@@ -33,6 +35,7 @@ def items():
 
 @inventory_bp.route('/inventory/items/new', methods=['GET', 'POST'])
 @login_required_session
+@permission_required('MANAGE_INVENTORY')
 def new_item():
     if request.method == 'POST':
         name = request.form.get('itemName', '').strip()
@@ -53,10 +56,11 @@ def new_item():
                 flash('An item with that name already exists.', 'error')
                 return render_template('inventory/new_item.html', form=request.form)
 
-            query_db(
+            new_id = query_db(
                 "INSERT INTO Item (itemName, category) VALUES (%s, %s)",
                 (name, category), commit=True
             )
+            sync_item(new_id)
             flash(f'Item "{name}" created successfully.', 'success')
             return redirect(url_for('inventory.items'))
         except Exception as e:
@@ -99,6 +103,7 @@ def devices():
 
 @inventory_bp.route('/inventory/devices/new', methods=['GET', 'POST'])
 @login_required_session
+@permission_required('MANAGE_INVENTORY')
 def new_device():
     items_list = query_db("SELECT itemId, itemName FROM Item ORDER BY itemName")
 
@@ -127,10 +132,11 @@ def new_device():
                 flash('Serial number already exists.', 'error')
                 return render_template('inventory/new_device.html', items=items_list, form=request.form)
 
-            query_db(
+            new_id = query_db(
                 "INSERT INTO Device (itemId, cardNumber, serialNumber, status) VALUES (%s, %s, %s, 'available')",
                 (item_id, card_number, serial_number), commit=True
             )
+            sync_device(new_id)
             flash('Device created successfully.', 'success')
             return redirect(url_for('inventory.devices'))
         except Exception as e:
@@ -142,6 +148,7 @@ def new_device():
 
 @inventory_bp.route('/inventory/devices/<int:did>/assign', methods=['POST'])
 @login_required_session
+@permission_required('MANAGE_INVENTORY')
 def assign_device(did):
     try:
         device = query_db("SELECT * FROM Device WHERE deviceId = %s", (did,), one=True)
@@ -171,6 +178,7 @@ def assign_device(did):
 
 @inventory_bp.route('/inventory/devices/<int:did>/return', methods=['POST'])
 @login_required_session
+@permission_required('MANAGE_INVENTORY')
 def return_device(did):
     try:
         device = query_db("SELECT * FROM Device WHERE deviceId = %s", (did,), one=True)

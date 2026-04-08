@@ -1,6 +1,8 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, abort, session
 from db import query_db
-from routes.auth import login_required_session, admin_required
+from routes.auth import login_required_session
+from routes.decorators import permission_required
+from rag.sync import sync_ticket
 import logging
 
 tickets_bp = Blueprint('tickets', __name__)
@@ -91,10 +93,11 @@ def new_ticket():
             return render_template('tickets/form.html', customers=customers, form=request.form)
 
         try:
-            query_db(
+            new_id = query_db(
                 "INSERT INTO Ticket (customerId, priority, status) VALUES (%s, %s, 'open')",
                 (customer_id, priority), commit=True
             )
+            sync_ticket(new_id)
             flash('Ticket created successfully.', 'success')
             return redirect(url_for('tickets.list_tickets'))
         except Exception as e:
@@ -105,7 +108,8 @@ def new_ticket():
 
 
 @tickets_bp.route('/tickets/<int:tid>/assign', methods=['POST'])
-@admin_required
+@login_required_session
+@permission_required('HANDLE_TICKETS')
 def assign_ticket(tid):
     try:
         ticket = query_db("SELECT * FROM Ticket WHERE ticketId = %s", (tid,), one=True)
@@ -120,6 +124,7 @@ def assign_ticket(tid):
             "UPDATE Ticket SET handledBy=%s WHERE ticketId=%s",
             (employee_id, tid), commit=True
         )
+        sync_ticket(tid)
         flash('Ticket assigned successfully.', 'success')
     except Exception as e:
         logging.error(f"Assign ticket error: {e}")
@@ -129,15 +134,12 @@ def assign_ticket(tid):
 
 @tickets_bp.route('/tickets/<int:tid>/update-status', methods=['POST'])
 @login_required_session
+@permission_required('HANDLE_TICKETS')
 def update_status(tid):
     try:
         ticket = query_db("SELECT * FROM Ticket WHERE ticketId = %s", (tid,), one=True)
         if not ticket:
             abort(404)
-
-        role = session.get('role')
-        if role not in ('admin', 'employee'):
-            abort(403)
 
         new_status = request.form.get('status', '').strip()
         if new_status not in ('open', 'in-progress', 'resolved', 'closed'):
@@ -148,6 +150,7 @@ def update_status(tid):
             "UPDATE Ticket SET status=%s WHERE ticketId=%s",
             (new_status, tid), commit=True
         )
+        sync_ticket(tid)
         flash('Ticket status updated.', 'success')
     except Exception as e:
         logging.error(f"Update ticket status error: {e}")

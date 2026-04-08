@@ -11,12 +11,16 @@ from routes.auth import login_required_session
 
 chatbot_bp = Blueprint('chatbot', __name__)
 
+CHAT_HISTORY_KEY = 'chat_history'
+MAX_HISTORY = 50
+
 
 @chatbot_bp.route('/chatbot')
 @login_required_session
 def index():
-    """Render the chatbot UI."""
-    return render_template('chatbot/index.html')
+    """Render the chatbot UI, passing saved chat history."""
+    history = session.get(CHAT_HISTORY_KEY, [])
+    return render_template('chatbot/index.html', chat_history=history)
 
 
 @chatbot_bp.route('/chatbot/ask', methods=['POST'])
@@ -55,9 +59,20 @@ def ask():
             for doc in result.get('retrieved_docs', [])
         ]
 
+        answer = result['answer']
+
+        # Persist to session (cap at MAX_HISTORY messages)
+        history = session.get(CHAT_HISTORY_KEY, [])
+        history.append({'role': 'user', 'text': query})
+        history.append({'role': 'assistant', 'text': answer, 'sources': sources})
+        if len(history) > MAX_HISTORY:
+            history = history[-MAX_HISTORY:]
+        session[CHAT_HISTORY_KEY] = history
+        session.modified = True
+
         return jsonify({
             'query':   result['query'],
-            'answer':  result['answer'],
+            'answer':  answer,
             'sources': sources,
         })
 
@@ -76,3 +91,12 @@ def ask():
     except Exception as e:
         logging.error(f"Chatbot error: {e}", exc_info=True)
         return jsonify({'error': 'Something went wrong. Please try again.'}), 500
+
+
+@chatbot_bp.route('/chatbot/clear', methods=['POST'])
+@login_required_session
+def clear():
+    """Clear the saved chat history from the session."""
+    session.pop(CHAT_HISTORY_KEY, None)
+    session.modified = True
+    return jsonify({'ok': True})

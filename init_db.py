@@ -50,10 +50,7 @@ insert into User values
 (3,'admin_peter','hash_003','active'),(4,'admin_lisa','hash_004','active'),
 (5,'admin_kevin','hash_005','active'),(6,'emp_mike','hash_006','active'),
 (7,'emp_linda','hash_007','active'),(8,'emp_carlos','hash_008','active'),
-(9,'emp_nina','hash_009','active'),(10,'emp_david','hash_010','active'),
-(11,'cust_alice','hash_011','active'),(12,'cust_bob','hash_012','active'),
-(13,'cust_charlie','hash_013','active'),(14,'cust_diana','hash_014','active'),
-(15,'cust_evan','hash_015','active');
+(9,'emp_nina','hash_009','active'),(10,'emp_david','hash_010','active');
 
 create table Admin (
     userId int not null,
@@ -70,15 +67,14 @@ create table Employee (
 insert into Employee values (6),(7),(8),(9),(10);
 
 create table Customer (
-    customerId int not null,
+    customerId int not null auto_increment,
     firstName varchar(50) not null,
     lastName varchar(50) not null,
     address varchar(255) not null,
     accountStatus varchar(20) not null default 'active',
-    primary key (customerId),
-    foreign key (customerId) references User(userId) on delete cascade
+    primary key (customerId)
 );
-insert into Customer values
+insert into Customer (customerId, firstName, lastName, address, accountStatus) values
 (11,'Alice','Smith','101 Maple St, Vancouver','active'),
 (12,'Bob','Jones','202 Oak Ave, Burnaby','active'),
 (13,'Charlie','Brown','303 Pine Rd, Surrey','active'),
@@ -344,7 +340,6 @@ def main():
     print("  Example credentials:")
     print("    Admin:    admin_sara / admin_sara_pass")
     print("    Employee: emp_mike / emp_mike_pass")
-    print("    Customer: cust_alice / cust_alice_pass")
 
     cursor.close()
     conn.close()

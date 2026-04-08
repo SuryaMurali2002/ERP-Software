@@ -7,6 +7,7 @@ sys.path.insert(0, os.path.dirname(__file__))
 from flask import Flask, render_template, redirect, url_for, session
 from flask_bcrypt import Bcrypt
 from config import SECRET_KEY
+from db import query_db
 
 app = Flask(__name__)
 app.secret_key = SECRET_KEY
@@ -60,11 +61,23 @@ def not_found(e):
 
 
 @app.context_processor
-def inject_session():
+def inject_user_context():
+    """Inject current user info and permissions into every template."""
+    if 'user_id' not in session:
+        return {'current_user_id': None, 'current_user_name': None, 'current_role': None, 'user_permissions': []}
+    try:
+        perms = query_db(
+            "SELECT permissionCode FROM RoleHasPermission WHERE userId = %s",
+            (session['user_id'],)
+        )
+        perm_list = [p['permissionCode'] for p in (perms or [])]
+    except Exception:
+        perm_list = []
     return {
         'current_user_id': session.get('user_id'),
         'current_user_name': session.get('user_name'),
         'current_role': session.get('role'),
+        'user_permissions': perm_list,
     }
 
 
