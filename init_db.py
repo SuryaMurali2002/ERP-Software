@@ -148,7 +148,10 @@ create table Subscription (
 insert into Subscription values
 (1,11,1,'2024-01-01',null,'active'),(2,12,2,'2024-02-01',null,'active'),
 (3,13,3,'2024-03-01',null,'active'),(4,14,4,'2024-01-15','2025-01-15','expired'),
-(5,15,5,'2024-06-01',null,'active');
+(5,15,5,'2024-06-01',null,'active'),
+-- Alice (11) subscribes to all remaining packages — needed for division query demo
+(6,11,2,'2024-01-01',null,'active'),(7,11,3,'2024-01-01',null,'active'),
+(8,11,4,'2024-01-01',null,'active'),(9,11,5,'2024-01-01',null,'active');
 
 create table Invoice (
     invoiceId int not null auto_increment,
