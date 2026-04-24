@@ -288,6 +288,76 @@ insert into TransactionLine values
 (1,1,1,10),(1,2,2,5),(2,1,3,20),(3,1,1,3),(4,1,4,15);
 """
 
+# Triggers are defined separately because their bodies contain semicolons,
+# which would break the simple split(';') used for SCHEMA_SQL.
+TRIGGERS_SQL = [
+    """
+    DROP TRIGGER IF EXISTS prevent_duplicate_active_subscription
+    """,
+    """
+    CREATE TRIGGER prevent_duplicate_active_subscription
+    BEFORE INSERT ON Subscription
+    FOR EACH ROW
+    BEGIN
+        DECLARE existing_count INT;
+        SELECT COUNT(*) INTO existing_count
+        FROM Subscription
+        WHERE customerId = NEW.customerId
+          AND packageId  = NEW.packageId
+          AND status     = 'active';
+        IF existing_count > 0 THEN
+            SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'Customer already has an active subscription for this package.';
+        END IF;
+    END
+    """,
+    """
+    DROP TRIGGER IF EXISTS auto_mark_invoice_paid
+    """,
+    """
+    CREATE TRIGGER auto_mark_invoice_paid
+    AFTER INSERT ON PaymentAllocation
+    FOR EACH ROW
+    BEGIN
+        DECLARE total_allocated DECIMAL(10,2);
+        DECLARE invoice_total   DECIMAL(10,2);
+        SELECT SUM(allocatedAmount) INTO total_allocated
+        FROM PaymentAllocation
+        WHERE invoiceId = NEW.invoiceId;
+        SELECT totalAmount INTO invoice_total
+        FROM Invoice
+        WHERE invoiceId = NEW.invoiceId;
+        IF total_allocated >= invoice_total THEN
+            UPDATE Invoice
+            SET invoiceStatus = 'paid'
+            WHERE invoiceId = NEW.invoiceId;
+        END IF;
+    END
+    """,
+    """
+    DROP TRIGGER IF EXISTS prevent_negative_stock
+    """,
+    """
+    CREATE TRIGGER prevent_negative_stock
+    BEFORE INSERT ON TransactionLine
+    FOR EACH ROW
+    BEGIN
+        DECLARE current_stock INT;
+        SELECT COALESCE(SUM(CASE WHEN it.transactionType = 'inbound'  THEN tl.quantity ELSE 0 END), 0)
+             - COALESCE(SUM(CASE WHEN it.transactionType = 'outbound' THEN tl.quantity ELSE 0 END), 0)
+        INTO current_stock
+        FROM TransactionLine tl
+        JOIN InventoryTransaction it ON tl.transactionID = it.transactionID
+        WHERE tl.itemId = NEW.itemId;
+        IF (SELECT transactionType FROM InventoryTransaction WHERE transactionID = NEW.transactionID) = 'outbound'
+           AND current_stock < NEW.quantity THEN
+            SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'Insufficient stock: outbound quantity exceeds current stock level.';
+        END IF;
+    END
+    """
+]
+
 
 def main():
     print("Connecting to MySQL...")
@@ -310,6 +380,14 @@ def main():
         stmt = statement.strip()
         if stmt:
             cursor.execute(stmt)
+
+    # Create triggers (executed individually — bodies contain semicolons)
+    print("Creating triggers...")
+    for trigger_sql in TRIGGERS_SQL:
+        stmt = trigger_sql.strip()
+        if stmt:
+            cursor.execute(stmt)
+    print("  Triggers created: prevent_duplicate_active_subscription, auto_mark_invoice_paid, prevent_negative_stock")
 
     # Hash passwords with bcrypt
     print("Hashing passwords with bcrypt...")
