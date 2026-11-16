@@ -1,7 +1,84 @@
 # Cable TV ERP System
-**CMPT 354 | Surya Murali**
+**CMPT 354 Final Project | Surya Murali**
 
-A full-stack business management system for a cable TV company. Built with Flask, MySQL, and a RAG-based AI assistant powered by ChromaDB and OpenAI.
+A full-stack business management system for a cable TV company. It covers customers, packages and subscriptions, billing, inventory, support tickets, reporting and role-based access control. It also includes a RAG-based AI assistant that answers questions about the company's data. Built with Flask, MySQL, ChromaDB and OpenAI.
+
+## Demo Videos
+
+- **Implementation walkthrough:** https://youtu.be/fE4QIfQb6jc
+- **Presentation:** https://youtu.be/LxETC_P5YFQ
+
+Database normalization write-up: [Database Normalization.pdf](Database%20Normalization.pdf)
+
+---
+
+## Features
+
+| Module | What it does |
+|---|---|
+| **Customers** | Create, view, edit customers and track account status |
+| **Employees & Permissions** | Manage staff; role-based access (Admin vs. Employee with granular permissions) |
+| **Packages & Subscriptions** | Define channel packages and subscribe customers to them |
+| **Billing** | Invoices with line items, payments, and payment allocations across invoices |
+| **Inventory** | Items, devices, device assignments to customers, stock transactions |
+| **Support Tickets** | Open, assign and resolve customer tickets |
+| **Reports** | 10 SQL reports showcasing a range of query techniques |
+| **ERP Assistant** | Chatbot that answers questions over live ERP data using RAG |
+| **Integrity Checks** | 12 SQL assertions that verify data consistency (web UI + CLI) |
+
+**Role-based access:** Admins have full access. Employees are limited to their assigned permission: `HANDLE_TICKETS`, `MANAGE_INVENTORY`, `VIEW_REPORTS` or `MANAGE_CUSTOMERS`.
+
+---
+
+## Database Design
+
+18 tables, created and seeded by `init_db.py`:
+
+| Domain | Tables |
+|---|---|
+| Users & access | `User`, `Admin`, `Employee`, `Permission`, `RoleHasPermission` |
+| Customers & services | `Customer`, `Package`, `Subscription`, `Ticket` |
+| Billing | `Invoice`, `InvoiceLineItem`, `Payment`, `PaymentAllocation` |
+| Inventory | `Item`, `Device`, `DeviceAssignment`, `InventoryTransaction`, `TransactionLine` |
+
+`Admin` and `Employee` specialize `User` (ISA hierarchy). Customers are decoupled from system users. Payments are split across invoices via `PaymentAllocation`. See the [normalization report](Database%20Normalization.pdf) for the functional-dependency analysis.
+
+---
+
+## SQL Queries Showcased (Reports page)
+
+| Report | Technique |
+|---|---|
+| Active Customer Subscriptions by Monthly Price | Selection, projection, multi-table join, ORDER BY |
+| Monthly Revenue Summary | Aggregation (`GROUP BY`) |
+| Customers with Outstanding Balances | Nested subquery |
+| Employees Who Have Not Handled Any Ticket | `NOT EXISTS` |
+| Customers Subscribed to Every Available Package | **Division** via double `NOT EXISTS` |
+| Invoice Payment Completion Status | `LEFT JOIN` with aggregation (balance remaining) |
+| Current Device Assignment Status | Four-table join |
+| Inventory Stock Level per Item | Conditional aggregation (inbound vs. outbound) |
+| Ticket Resolution Rate by Employee | Aggregation with `CASE` |
+| Admin Permission Summary | Joins and aggregation |
+
+The overdue-accounts report also includes a **Reactivate Eligible Accounts** action.
+
+---
+
+## AI Assistant (RAG)
+
+The ERP Assistant answers natural-language questions about the data.
+
+```
+MySQL records → exporter → text chunks → embedder (ChromaDB) → retriever → generator (OpenAI) → answer
+```
+
+- **Incremental sync:** create/update operations update the vector index automatically (`rag/sync.py`).
+- **Persistent chat history** per user.
+- **Evaluation suite** in `cable_tv_erp/eval/` with ground-truth questions and keyword scoring. Run from `cable_tv_erp/`:
+  ```python
+  from eval.eval_runner import run_eval
+  run_eval(top_k=5, dry_run=True)   # retrieval only, no OpenAI call
+  ```
 
 ---
 
@@ -9,39 +86,35 @@ A full-stack business management system for a cable TV company. Built with Flask
 
 | Requirement | Version | Notes |
 |---|---|---|
-| Python | 3.12 | Use Anaconda (recommended) |
+| Python | 3.12 | Anaconda recommended |
 | MySQL | 8.0+ | XAMPP works fine |
 | OpenAI API Key | — | Required for the AI chatbot only |
 
----
+## Setup
 
-## 1. Install Python (Anaconda — Recommended)
+### 1. Create a Python environment
 
-Download and install Anaconda from https://www.anaconda.com/download
-
-Then create a dedicated environment:
+Install Anaconda from https://www.anaconda.com/download, then:
 
 ```bash
 conda create -n erp python=3.12 -y
 conda activate erp
 ```
 
-> Activate this environment every time before running the project.
-
----
-
-## 2. Install Dependencies
+### 2. Install dependencies
 
 ```bash
 cd ERP-Software/cable_tv_erp
 pip install -r requirements.txt
 ```
 
----
+### 3. Configure environment variables
 
-## 3. Configure Environment Variables
+Copy the template, then edit it:
 
-Open `cable_tv_erp/.env` and set your database credentials and OpenAI key:
+```bash
+cp .env.example .env        # Windows: copy .env.example .env
+```
 
 ```
 DB_HOST=localhost
@@ -52,21 +125,13 @@ SECRET_KEY=cable-tv-erp-secret-key-cmpt354
 OPENAI_API_KEY=your-openai-api-key-here
 ```
 
-> If your MySQL root user has no password, leave `DB_PASSWORD=` blank.
-> The OpenAI key is only required for the ERP Assistant chatbot feature.
+> If your MySQL root user has no password, leave `DB_PASSWORD=` blank. The OpenAI key is only needed for the chatbot.
+### 4. Start MySQL
 
----
+- **XAMPP:** open the Control Panel and click **Start** next to MySQL.
+- **Standalone:** start the MySQL service.
 
-## 4. Start MySQL
-
-Make sure MySQL is running before the next steps.
-
-- **XAMPP:** Open the XAMPP Control Panel and click **Start** next to MySQL.
-- **Standalone MySQL:** Start the MySQL service from your system services.
-
----
-
-## 5. Initialize the Database
+### 5. Initialize the database
 
 From the project root (`ERP-Software/`):
 
@@ -74,46 +139,31 @@ From the project root (`ERP-Software/`):
 python init_db.py
 ```
 
-This will:
-- Create the `cable_tv_erp` database
-- Create all 18 tables
-- Insert all seed data (users, customers, packages, subscriptions, invoices, payments, devices, tickets)
+Creates the `cable_tv_erp` database, all 18 tables, and the seed data. Safe to re-run: it drops and recreates all tables.
 
-> Safe to re-run — it drops and recreates all tables each time.
-
----
-
-## 6. Build the RAG Index (for AI Chatbot)
+### 6. Build the RAG index (for the chatbot)
 
 ```bash
 cd cable_tv_erp/scripts
 python build_index.py
 ```
 
-This exports all database records into a ChromaDB vector index used by the ERP Assistant. Takes approximately 30 seconds on first run.
+Takes about 30 seconds. Re-run if the database is reseeded directly via SQL.
 
-> Only needs to be run once after seeding. Re-run if the database is reseeded directly via SQL.
-
----
-
-## 7. Run the Application
+### 7. Run the application
 
 ```bash
 cd cable_tv_erp
 python app.py
 ```
 
-Open your browser and navigate to:
-
-```
-http://localhost:5000
-```
+Open http://localhost:5000
 
 ---
 
-## 8. Login Credentials
+## Login Credentials
 
-### Admin Accounts
+### Admins
 | Username | Password |
 |---|---|
 | admin_sara | admin_sara_pass |
@@ -122,8 +172,8 @@ http://localhost:5000
 | admin_lisa | admin_lisa_pass |
 | admin_kevin | admin_kevin_pass |
 
-### Employee Accounts
-| Username | Password | Permissions |
+### Employees
+| Username | Password | Permission |
 |---|---|---|
 | emp_mike | emp_mike_pass | HANDLE_TICKETS |
 | emp_linda | emp_linda_pass | MANAGE_INVENTORY |
@@ -131,26 +181,17 @@ http://localhost:5000
 | emp_nina | emp_nina_pass | VIEW_REPORTS |
 | emp_david | emp_david_pass | MANAGE_CUSTOMERS |
 
-> Admins have full access to all modules. Employee access is restricted to their assigned permissions.
-
 ---
 
-## 9. Optional — Run Data Integrity Checks (CLI)
+## Data Integrity Checks
 
 ```bash
-cd ERP-Software
-python scripts/run_assertions.py
+python scripts/run_assertions.py              # run all 12 checks
+python scripts/run_assertions.py --verbose    # show offending rows
+python scripts/run_assertions.py --fix        # remediation guidance for LOW severity issues
 ```
 
-Flags:
-```bash
-python scripts/run_assertions.py --verbose    # shows offending rows for failures
-python scripts/run_assertions.py --fix        # prints remediation guidance for LOW severity issues
-```
-
-Exit codes: `0` = all pass, `1` = HIGH failure, `2` = MEDIUM failure only.
-
-The same checks are available in the web UI under **Admin → Integrity Checks**.
+Exit codes: `0` all pass, `1` HIGH failure, `2` MEDIUM failure only. The same checks are available in the web UI under **Admin → Integrity Checks**.
 
 ---
 
@@ -159,38 +200,20 @@ The same checks are available in the web UI under **Admin → Integrity Checks**
 ```
 ERP-Software/
 ├── init_db.py                  # Database creation and seed script
+├── Database Normalization.pdf  # Normalization write-up
 ├── scripts/
 │   └── run_assertions.py       # CLI data integrity checker
 └── cable_tv_erp/
-    ├── app.py                  # Flask application entry point
+    ├── app.py                  # Flask entry point
     ├── db.py                   # Database connection helper
     ├── config.py               # Environment variable loader
-    ├── .env                    # Environment variables (configure this)
-    ├── requirements.txt        # Python dependencies
+    ├── .env.example            # Environment template
+    ├── requirements.txt
     ├── routes/                 # Flask blueprints (one per module)
-    │   ├── auth.py
-    │   ├── dashboard.py
-    │   ├── customers.py
-    │   ├── employees.py
-    │   ├── packages.py
-    │   ├── subscriptions.py
-    │   ├── billing.py
-    │   ├── inventory.py
-    │   ├── tickets.py
-    │   ├── permissions.py
-    │   ├── reports.py
-    │   ├── chatbot.py
-    │   ├── admin_integrity.py
-    │   └── decorators.py
-    ├── rag/                    # RAG pipeline for AI chatbot
-    │   ├── exporter.py         # Exports DB records to text chunks
-    │   ├── embedder.py         # ChromaDB vector index builder
-    │   ├── retriever.py        # Semantic search
-    │   ├── generator.py        # OpenAI response generation
-    │   └── sync.py             # Incremental index sync hooks
-    ├── scripts/
-    │   └── build_index.py      # RAG index builder script
-    ├── templates/              # Jinja2 HTML templates
+    ├── rag/                    # exporter, embedder, retriever, generator, sync
+    ├── eval/                   # RAG evaluation suite and results
+    ├── scripts/build_index.py  # RAG index builder
+    ├── templates/              # Jinja2 templates
     └── static/                 # CSS and JavaScript
 ```
 
@@ -198,25 +221,12 @@ ERP-Software/
 
 ## Troubleshooting
 
-**`ModuleNotFoundError` on startup**
-Make sure the `erp` conda environment is activated: `conda activate erp`
+**`ModuleNotFoundError` on startup**: activate the environment: `conda activate erp`.
 
-**`Can't connect to MySQL` error**
-MySQL is not running. Start it via XAMPP or your system services before running `init_db.py` or `app.py`.
+**`Can't connect to MySQL`**: MySQL isn't running. Start it before `init_db.py` or `app.py`.
 
-**Chatbot returns wrong or outdated answers**
-The vector index is stale. Rebuild it:
-```bash
-cd cable_tv_erp/scripts
-python build_index.py
-```
+**Chatbot gives wrong or outdated answers**: rebuild the index with `python build_index.py` in `cable_tv_erp/scripts`.
 
-**`chromadb` import error on Python 3.14**
-Python 3.14 is not supported by ChromaDB. Use Python 3.12 via Anaconda as described in Step 1.
+**`chromadb` import error on Python 3.14**: ChromaDB doesn't support 3.14. Use Python 3.12.
 
-**Port 5000 already in use**
-Change the port in `cable_tv_erp/app.py` line 87:
-```python
-app.run(debug=True, host='0.0.0.0', port=5001)
-```
-Then access the app at `http://localhost:5001`.
+**Port 5000 in use**: change the port in `cable_tv_erp/app.py` (`app.run(..., port=5001)`) and visit `http://localhost:5001`.
