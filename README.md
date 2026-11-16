@@ -41,7 +41,7 @@ Database normalization write-up: [Database Normalization.pdf](Database%20Normali
 | Billing | `Invoice`, `InvoiceLineItem`, `Payment`, `PaymentAllocation` |
 | Inventory | `Item`, `Device`, `DeviceAssignment`, `InventoryTransaction`, `TransactionLine` |
 
-`Admin` and `Employee` specialize `User` (ISA hierarchy). Customers are decoupled from system users. Payments are split across invoices via `PaymentAllocation`. See the [normalization report](Database%20Normalization.pdf) for the functional-dependency analysis.
+`Admin` and `Employee` specialize `User` (ISA hierarchy). Customers are decoupled from system users. Payments are split across invoices via `PaymentAllocation`. Three database triggers enforce business rules: `prevent_duplicate_active_subscription`, `auto_mark_invoice_paid` and `prevent_negative_stock`. See the [normalization report](Database%20Normalization.pdf) for the functional-dependency analysis.
 
 ---
 
@@ -139,7 +139,7 @@ From the project root (`ERP-Software/`):
 python init_db.py
 ```
 
-Creates the `cable_tv_erp` database, all 18 tables, and the seed data. Safe to re-run: it drops and recreates all tables.
+Creates the `cable_tv_erp` database, all 18 tables, the triggers, and the seed data. Safe to re-run: it drops and recreates all tables.
 
 ### 6. Build the RAG index (for the chatbot)
 
